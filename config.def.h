@@ -60,6 +60,7 @@ static const struct xkb_rule_names xkb_rules = {
 	.options = NULL,
 };
 
+static const int keybinding_repeat_rate = 0;
 static const int repeat_rate = 25;
 static const int repeat_delay = 600;
 

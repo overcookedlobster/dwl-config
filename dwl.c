@@ -1686,11 +1686,11 @@ keyrepeat(void *data)
 {
 	KeyboardGroup *group = data;
 	int i;
-	if (!group->nsyms || group->wlr_group->keyboard.repeat_info.rate <= 0)
+	int krr = keybinding_repeat_rate;   // avoids div-by-zero warning
+	if (group->nsyms <= 0 || krr <= 0)
 		return 0;
 
-	wl_event_source_timer_update(group->key_repeat_source,
-			1000 / group->wlr_group->keyboard.repeat_info.rate);
+	wl_event_source_timer_update(group->key_repeat_source, 1000 / krr);
 
 	for (i = 0; i < group->nsyms; i++)
 		keybinding(group->mods, group->keysyms[i]);
