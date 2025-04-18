@@ -294,7 +294,7 @@ static void gpureset(struct wl_listener *listener, void *data);
 static void handlesig(int signo);
 static void incnmaster(const Arg *arg);
 static void inputdevice(struct wl_listener *listener, void *data);
-static int keybinding(uint32_t mods, xkb_keysym_t sym, uint32_t keycode);
+static const Key * keybinding(uint32_t mods, xkb_keysym_t sym);
 static void keypress(struct wl_listener *listener, void *data);
 static void keypressmod(struct wl_listener *listener, void *data);
 static int keyrepeat(void *data);
@@ -1556,8 +1556,8 @@ inputdevice(struct wl_listener *listener, void *data)
 	wlr_seat_set_capabilities(seat, caps);
 }
 
-int
-keybinding(uint32_t mods, xkb_keysym_t sym, uint32_t keycode)
+const Key *
+keybinding(uint32_t mods, xkb_keysym_t sym)
 {
 	/*
 	 * Here we handle compositor keybindings. This is when the compositor is
@@ -1567,14 +1567,10 @@ keybinding(uint32_t mods, xkb_keysym_t sym, uint32_t keycode)
 	const Key *k;
 	for (k = keys; k < END(keys); k++) {
 		if (CLEANMASK(mods) == CLEANMASK(k->mod)
-				&& sym == k->keysym && k->func) {
-			if (keycode <= KEY_MAX)
-				consumed[keycode] = true;
-			k->func(&k->arg);
-			return 1;
-		}
+				&& sym == k->keysym && k->func)
+			return k;
 	}
-	return 0;
+	return NULL;
 }
 
 void
@@ -1600,8 +1596,14 @@ keypress(struct wl_listener *listener, void *data)
 	/* On _press_ if there is no active screen locker,
 	 * attempt to process a compositor keybinding. */
 	if (!locked && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
-		for (i = 0; i < nsyms; i++)
-			handled = keybinding(mods, syms[i], event->keycode) || handled;
+		for (i = 0; i < nsyms; i++) {
+			const Key *key = keybinding(mods, syms[i]);
+			if (key) {
+				consumed[event->keycode] = true;
+				key->func(&key->arg);
+				handled = 1;
+			}
+		}
 	}
 
 	if (handled && group->wlr_group->keyboard.repeat_info.delay > 0) {
@@ -1653,9 +1655,11 @@ keyrepeat(void *data)
 	wl_event_source_timer_update(group->key_repeat_source,
 			1000 / group->wlr_group->keyboard.repeat_info.rate);
 
-	for (i = 0; i < group->nsyms; i++)
-		// pass KEY_MAX + 1 so consumed[keycode] will not update
-		keybinding(group->mods, group->keysyms[i], KEY_MAX + 1);
+	for (i = 0; i < group->nsyms; i++) {
+		const Key *key = keybinding(group->mods, group->keysyms[i]);
+		if (key)
+			key->func(&key->arg);
+	}
 
 	return 0;
 }
