@@ -869,17 +869,21 @@ commitnotify(struct wl_listener *listener, void *data)
 
 		wlr_xdg_toplevel_set_wm_capabilities(c->surface.xdg->toplevel,
 				WLR_XDG_TOPLEVEL_WM_CAPABILITIES_FULLSCREEN);
+		client_set_tiled(c, WLR_EDGE_TOP | WLR_EDGE_BOTTOM | WLR_EDGE_LEFT | WLR_EDGE_RIGHT);
 		if (c->decoration)
 			requestdecorationmode(&c->set_decoration_mode, c->decoration);
 		wlr_xdg_toplevel_set_size(c->surface.xdg->toplevel, 0, 0);
 		return;
 	}
 
-	resize(c, c->geom, (c->isfloating && !c->isfullscreen));
+	if(!c->resize)
+		return;
 
 	/* mark a pending resize as completed */
-	if (c->resize && c->resize <= c->surface.xdg->current.configure_serial)
+	if (c->resize && c->resize <= c->surface.xdg->current.configure_serial) {
 		c->resize = 0;
+		wlr_output_schedule_frame(c->mon->wlr_output);
+	}
 }
 
 void
