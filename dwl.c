@@ -1648,15 +1648,17 @@ keypress(struct wl_listener *listener, void *data)
 			handled = keybinding(mods, syms[i]) || handled;
 	}
 
-	if (handled && group->wlr_group->keyboard.repeat_info.delay > 0) {
-		group->mods = mods;
-		group->keysyms = syms;
-		group->nsyms = nsyms;
-		wl_event_source_timer_update(group->key_repeat_source,
-				group->wlr_group->keyboard.repeat_info.delay);
-	} else {
-		group->nsyms = 0;
-		wl_event_source_timer_update(group->key_repeat_source, 0);
+	if (keybinding_repeat_rate > 0) {
+		if (handled) {
+			group->mods = mods;
+			group->keysyms = syms;
+			group->nsyms = nsyms;
+			wl_event_source_timer_update(group->key_repeat_source,
+					group->wlr_group->keyboard.repeat_info.delay);
+		} else {
+			group->nsyms = 0;
+			wl_event_source_timer_update(group->key_repeat_source, 0);
+		}
 	}
 
 	if (handled)
