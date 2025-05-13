@@ -1404,7 +1404,7 @@ focusclient(Client *c, int lift)
 	Client *old_c = NULL;
 	LayerSurface *old_l = NULL;
 
-	if (locked)
+	if (locked || (c && client_should_ignore_focus(c)))
 		return;
 
 	/* Raise client in stacking order if requested */
