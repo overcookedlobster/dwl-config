@@ -1928,10 +1928,8 @@ motionnotify(uint32_t time, struct wlr_input_device *device, double dx, double d
 	/* If there's no client surface under the cursor, set the cursor image to a
 	 * default. This is what makes the cursor image appear when you move it
 	 * off of a client or over its border. */
-	if (!surface && !seat->drag) {
+	if (!surface && !seat->drag)
 		wlr_cursor_set_xcursor(cursor, cursor_mgr, "default");
-		focusclient(NULL, 0);
-	}
 
 	pointerfocus(c, surface, sx, sy, time);
 }
@@ -2069,6 +2067,7 @@ pointerfocus(Client *c, struct wlr_surface *surface, double sx, double sy,
 	/* If surface is NULL, clear pointer focus */
 	if (!surface) {
 		wlr_seat_pointer_notify_clear_focus(seat);
+		focusclient(NULL, 0);
 		return;
 	}
 
