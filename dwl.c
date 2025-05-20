@@ -2064,10 +2064,13 @@ pointerfocus(Client *c, struct wlr_surface *surface, double sx, double sy,
 			sloppyfocus && time && c && !client_is_unmanaged(c))
 		focusclient(c, 0);
 
+	/* Unfocus any focused clients if surface is NULL and focus should follow mouse */
+	if (!surface && sloppyfocus)
+		focusclient(NULL, 0);
+
 	/* If surface is NULL, clear pointer focus */
 	if (!surface) {
 		wlr_seat_pointer_notify_clear_focus(seat);
-		focusclient(NULL, 0);
 		return;
 	}
 
