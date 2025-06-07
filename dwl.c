@@ -134,6 +134,7 @@ typedef struct {
 	struct wl_listener dissociate;
 	struct wl_listener configure;
 	struct wl_listener set_hints;
+	struct wl_listener set_geometry;
 #endif
 	unsigned int bw;
 	uint32_t tags;
@@ -444,6 +445,7 @@ static void createnotifyx11(struct wl_listener *listener, void *data);
 static void dissociatex11(struct wl_listener *listener, void *data);
 static void sethints(struct wl_listener *listener, void *data);
 static void xwaylandready(struct wl_listener *listener, void *data);
+static void setgeometrynotify(struct wl_listener *listener, void *data);
 static struct wl_listener new_xwayland_surface = {.notify = createnotifyx11};
 static struct wl_listener xwayland_ready = {.notify = xwaylandready};
 static struct wlr_xwayland *xwayland;
@@ -1760,6 +1762,11 @@ mapnotify(struct wl_listener *listener, void *data)
 			focusclient(c, 1);
 			exclusive_focus = c;
 		}
+#ifdef XWAYLAND
+		if (client_is_x11(c)) {
+			LISTEN(&c->surface.xwayland->events.set_geometry, &c->set_geometry, setgeometrynotify);
+		}
+#endif
 		goto unset_fullscreen;
 	}
 
@@ -2816,6 +2823,11 @@ unmapnotify(struct wl_listener *listener, void *data)
 	}
 
 	if (client_is_unmanaged(c)) {
+#ifdef XWAYLAND
+		if (client_is_x11(c)) {
+			wl_list_remove(&c->set_geometry.link);
+		}
+#endif
 		if (c == exclusive_focus) {
 			exclusive_focus = NULL;
 			focusclient(focustop(selmon), 1);
@@ -3175,6 +3187,17 @@ xwaylandready(struct wl_listener *listener, void *data)
 				xcursor->images[0]->buffer, xcursor->images[0]->width * 4,
 				xcursor->images[0]->width, xcursor->images[0]->height,
 				xcursor->images[0]->hotspot_x, xcursor->images[0]->hotspot_y);
+}
+
+void
+setgeometrynotify(struct wl_listener *listener, void *data)
+{
+	Client *c = wl_container_of(listener, c, set_geometry);
+
+	c->geom.x = c->surface.xwayland->x;
+	c->geom.y = c->surface.xwayland->y;
+	wlr_scene_node_set_position(&c->scene->node, c->surface.xwayland->x, c->surface.xwayland->y);
+	motionnotify(0, NULL, 0, 0, 0, 0);
 }
 #endif
 
