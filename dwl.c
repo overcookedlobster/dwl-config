@@ -294,8 +294,6 @@ static void handlesig(int signo);
 static void incnmaster(const Arg *arg);
 static void inputdevice(struct wl_listener *listener, void *data);
 static int keybinding(uint32_t mods, xkb_keysym_t sym);
-static xkb_keysym_t keymap_get_one_sym_by_level(struct xkb_keymap *keymap,
-		xkb_keycode_t key, xkb_layout_index_t layout, xkb_level_index_t level);
 static void keypress(struct wl_listener *listener, void *data);
 static void keypressmod(struct wl_listener *listener, void *data);
 static int keyrepeat(void *data);
@@ -1573,15 +1571,6 @@ keybinding(uint32_t mods, xkb_keysym_t sym)
 		}
 	}
 	return 0;
-}
-
-xkb_keysym_t
-keymap_get_one_sym_by_level(struct xkb_keymap *keymap, xkb_keycode_t key,
-                xkb_layout_index_t layout, xkb_level_index_t level)
-{
-        const xkb_keysym_t *syms;
-        int count = xkb_keymap_key_get_syms_by_level(keymap, key, layout, level, &syms);
-        return count > 0 ? syms[0] : XKB_KEY_NoSymbol;
 }
 
 void
