@@ -175,6 +175,7 @@ typedef struct {
 
 	struct wl_listener destroy;
 	struct wl_listener unmap;
+	struct wl_listener map;
 	struct wl_listener surface_commit;
 } LayerSurface;
 
@@ -254,6 +255,7 @@ static void cleanup(void);
 static void cleanupmon(struct wl_listener *listener, void *data);
 static void cleanuplisteners(void);
 static void closemon(Monitor *m);
+static void maplayersurfacenotify(struct wl_listener *listener, void *data);
 static void commitlayersurfacenotify(struct wl_listener *listener, void *data);
 static void commitnotify(struct wl_listener *listener, void *data);
 static void commitpopup(struct wl_listener *listener, void *data);
@@ -592,7 +594,7 @@ arrangelayers(Monitor *m)
 	/* Find topmost keyboard interactive layer, if such a layer exists */
 	for (i = 0; i < (int)LENGTH(layers_above_shell); i++) {
 		wl_list_for_each_reverse(l, &m->layers[layers_above_shell[i]], link) {
-			if (locked || l->layer_surface->current.keyboard_interactive != ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE || !l->mapped)
+			if (locked || l->layer_surface->current.keyboard_interactive != ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE || !l->mapped || l == exclusive_focus)
 				continue;
 			/* Deactivate the focused client. */
 			focusclient(NULL, 0);
@@ -644,7 +646,7 @@ buttonpress(struct wl_listener *listener, void *data)
 			if (c && (!client_is_unmanaged(c) || client_wants_focus(c)))
 				focusclient(c, 1);
 
-			if (l && l->layer_surface->current.keyboard_interactive) {
+			if (l && !exclusive_focus && l->layer_surface->current.keyboard_interactive == ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND) {
 				focusclient(NULL, 0);
 				client_notify_enter(l->layer_surface->surface, wlr_seat_get_keyboard(seat));
 			}
@@ -824,6 +826,21 @@ closemon(Monitor *m)
 	}
 	focusclient(focustop(selmon), 1);
 	printstatus();
+}
+
+void
+maplayersurfacenotify(struct wl_listener *listener, void *data)
+{
+	LayerSurface *l = wl_container_of(listener, l, map);
+	struct wlr_layer_surface_v1 *layer_surface = l->layer_surface;
+	l->mapped = 1;
+
+	arrangelayers(l->mon);
+
+	if(!exclusive_focus && layer_surface->current.keyboard_interactive == ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_ON_DEMAND) {
+		focusclient(NULL, 0);
+		client_notify_enter(layer_surface->surface, wlr_seat_get_keyboard(seat));
+	}
 }
 
 void
@@ -1014,6 +1031,8 @@ createlayersurface(struct wl_listener *listener, void *data)
 
 	l = layer_surface->data = ecalloc(1, sizeof(*l));
 	l->type = LayerShell;
+
+	LISTEN(&surface->events.map, &l->map, maplayersurfacenotify);
 	LISTEN(&surface->events.commit, &l->surface_commit, commitlayersurfacenotify);
 	LISTEN(&surface->events.unmap, &l->unmap, unmaplayersurfacenotify);
 	LISTEN(&layer_surface->events.destroy, &l->destroy, destroylayersurfacenotify);
@@ -1288,6 +1307,7 @@ destroylayersurfacenotify(struct wl_listener *listener, void *data)
 	wl_list_remove(&l->link);
 	wl_list_remove(&l->destroy.link);
 	wl_list_remove(&l->unmap.link);
+	wl_list_remove(&l->map.link);
 	wl_list_remove(&l->surface_commit.link);
 	wlr_scene_node_destroy(&l->scene->node);
 	wlr_scene_node_destroy(&l->popups->node);
@@ -1457,7 +1477,8 @@ focusclient(Client *c, int lift)
 		 * and focus it after the overlay is closed. */
 		if (old_client_type == LayerShell && wlr_scene_node_coords(
 					&old_l->scene->node, &unused_lx, &unused_ly)
-				&& old_l->layer_surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP) {
+				&& old_l->layer_surface->current.layer >= ZWLR_LAYER_SHELL_V1_LAYER_TOP
+				&& old_l == exclusive_focus) {
 			return;
 		} else if (old_c && old_c == exclusive_focus && client_wants_focus(old_c)) {
 			return;
