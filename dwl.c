@@ -2884,8 +2884,9 @@ unmapnotify(struct wl_listener *listener, void *data)
 		setmon(c, NULL, 0);
 		wl_list_remove(&c->flink);
 	}
-    if (c->ext_foreign_toplevel) {
+    if (c->ext_foreign_toplevel != NULL) {
         wlr_ext_foreign_toplevel_handle_v1_destroy(c->ext_foreign_toplevel);
+        c->ext_foreign_toplevel = NULL;
     }
 #ifdef XWAYLAND
     if (c->type != XDGShell && c->capture.image_capture_scene_surface) {
@@ -3012,7 +3013,7 @@ updatetitle(struct wl_listener *listener, void *data)
 	Client *c = wl_container_of(listener, c, set_title);
 	if (c == focustop(c->mon))
 		printstatus();
-    if (c->ext_foreign_toplevel) {
+    if (c->ext_foreign_toplevel != NULL) {
         struct wlr_ext_foreign_toplevel_handle_v1_state foreign_toplevel_state = {
 	    	.app_id = client_get_appid(c),
 	    	.title = client_get_title(c),
