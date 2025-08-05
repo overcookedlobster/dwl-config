@@ -126,7 +126,11 @@ typedef struct {
 	struct wl_listener commit;
     struct wlr_scene *image_capture_scene;
     struct wlr_ext_image_capture_source_v1 *image_capture_source;
-    struct wlr_scene_tree *image_capture_tree;
+    struct wlr_ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel;
+    union {
+        struct wlr_scene_tree *image_capture_tree;
+        struct wlr_scene_surface *image_capture_scene_surface; 
+    } capture;
 	struct wl_listener map;
 	struct wl_listener maximize;
 	struct wl_listener unmap;
@@ -136,7 +140,6 @@ typedef struct {
 	struct wl_listener set_decoration_mode;
 	struct wl_listener destroy_decoration;
 #ifdef XWAYLAND
-    struct wlr_scene_surface *image_capture_scene_surface; 
 	struct wl_listener activate;
 	struct wl_listener associate;
 	struct wl_listener dissociate;
@@ -147,7 +150,6 @@ typedef struct {
 	uint32_t tags;
 	int isfloating, isurgent, isfullscreen;
 	uint32_t resize; /* configure serial of a pending resize */
-    struct wlr_ext_foreign_toplevel_handle_v1 *ext_foreign_toplevel;
 } Client;
 
 typedef struct {
@@ -1775,10 +1777,10 @@ mapnotify(struct wl_listener *listener, void *data)
     c->ext_foreign_toplevel = wlr_ext_foreign_toplevel_handle_v1_create(foreign_toplevel_list,&foreign_toplevel_state);
     c->ext_foreign_toplevel->data = c;
     if (c->type == XDGShell) {
-        c->image_capture_tree = wlr_scene_xdg_surface_create(&c->image_capture_scene->tree, c->surface.xdg);
+        c->capture.image_capture_tree = wlr_scene_xdg_surface_create(&c->image_capture_scene->tree, c->surface.xdg);
 #ifdef XWAYLAND
     } else { /* xwayland */
-        c->image_capture_scene_surface = wlr_scene_surface_create(&c->image_capture_scene->tree, c->surface.xwayland->surface);
+        c->capture.image_capture_scene_surface = wlr_scene_surface_create(&c->image_capture_scene->tree, c->surface.xwayland->surface);
 #endif
     }
 
@@ -2886,9 +2888,9 @@ unmapnotify(struct wl_listener *listener, void *data)
         wlr_ext_foreign_toplevel_handle_v1_destroy(c->ext_foreign_toplevel);
     }
 #ifdef XWAYLAND
-    if (c->image_capture_scene_surface) {
-        wlr_scene_node_destroy(&c->image_capture_scene_surface->buffer->node);
-        c->image_capture_scene_surface = NULL;
+    if (c->type != XDGShell && c->capture.image_capture_scene_surface) {
+        wlr_scene_node_destroy(&c->capture.image_capture_scene_surface->buffer->node);
+        c->capture.image_capture_scene_surface = NULL;
     }
 #endif
 
